@@ -1,70 +1,79 @@
-const express = require("express");
-const ObjectId = require("mongodb").ObjectId;
-require("dotenv").config();
-const cors = require("cors");
-const { MongoClient } = require("mongodb");
-const app = express();
-const port = process.env.PORT || 5000;
-app.use(cors());
-app.use(express.json());
+const express = require('express')
+const app = express()
+const ObjectId = require('mongodb').ObjectId;
+const { MongoClient } = require('mongodb');
+require('dotenv').config()
+const cors = require('cors')
+const port = process.env.PORT || 7000;
 
-app.get("/", (req, res) => {
-  res.send("Hello World!");
-});
+app.use(cors())
+app.use(express.json())
+
+// connect with mongodb
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.hvbhx.mongodb.net/online_service?retryWrites=true&w=majority`;
+const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 
-// console.log(uri);
+async function run() {
+    try {
+        await client.connect();
+        const database = client.db('tour_service')
+        const offerCollection = database.collection('offers')
+        app.get('/services', async (req, res) => {
+            const cursor = offerCollection.find({})
+            const result = await cursor.toArray();
+            res.json(result)
+        })
+        app.post('/services', async (req, res) => {
+            const offer = req.body;
+            const result = await offerCollection.insertOne(offer)
+            console.log('this will be added into the services.', result)
+            res.send(result)
+        })
 
-const client = new MongoClient(uri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+    }
+    finally {
+        // await client.close();
+    }
+}
+run().catch(console.dir)
 
-const run = async () => {
-  try {
-    await client.connect();
-    const database = client.db("tourism_service");
-    const events = database.collection("events");
-    const registration = database.collection("registration");
+async function start() {
+    try {
+        await client.connect();
+        const database = client.db('storage')
+        const storedOffers = database.collection('offers')
 
-    app.get("/events", async (req, res) => {
-      const result = await events.find({}).toArray();
-      res.send(result);
-    });
-    app.get("/register/", async (req, res) => {
-      const result = await registration.find({}).toArray();
-      res.json(result);
-    });
+        // store a offer
+        app.post('/store', async (req, res) => {
+            const offer = req.body;
+            const result = await storedOffers.insertOne(offer)
+            res.json(result)
+        })
+        app.get('/store', async (req, res) => {
+            const cursor = storedOffers.find({})
+            const matched = await cursor.toArray()
+            // console.log('this is query', query)
+            res.json(matched)
+        })
+        app.delete('/store/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            console.log(id)
+            const result = await storedOffers.deleteOne(query)
+            res.send(result)
+            console.log(result)
+        })
 
-    app.post("/register/", async (req, res) => {
-      const result = await registration.insertOne(req.body);
-      res.json(result);
-    });
+    }
+    finally {
+        //   await client.close();
+    }
+}
+start().catch(console.dir)
 
-    app.delete(`/register/:id`, async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: ObjectId(id) };
-      const result = await registration.deleteOne(query);
-      res.json(result);
-    });
-
-    app.post(`/events/`, async (req, res) => {
-      const query = { email: { $in: [req.body.email] } };
-      console.log(req.body);
-      const result = await registration.find(query).toArray();
-      res.json(result);
-    });
-
-    app.delete(`/events/:id`, async (req, res) => {
-      const query = { _id: ObjectId(req.params.id) };
-      const result = await registration.deleteOne(query);
-      res.json(result);
-    });
-  } finally {
-  }
-};
-run().catch(console.dir);
-
+app.get('/', (req, res) => {
+    res.send('server is running.')
+})
 app.listen(port, () => {
-  console.log(`website listening at http://localhost:${port}`);
-});
+    console.log('this server is running at the port', port)
+})

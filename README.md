@@ -1,2 +1,2 @@
-# tourism-or-delivary-website-server
+# tourism-or-delivery-website-server
 edit soon...
